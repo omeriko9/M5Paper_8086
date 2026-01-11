@@ -1,0 +1,100 @@
+# ESP-IDF build artifacts
+build/
+esp-idf/
+bootloader/
+partition_table/
+gdbinit/
+disk2/
+CMakeFiles/
+roo/
+*.cmake
+CMakeCache.txt
+compile_commands.json
+config.env
+flasher_args.json
+kconfigs.in
+kconfigs_projbuild.in
+ldgen_libraries
+ldgen_libraries.in
+project_description.json
+project_elf_src_esp32.c
+x509_crt_bundle.S
+bootloader-prefix/
+src/
+tmp/
+managed_components_list.temp.cmake
+sections.ld-*.bat
+TargetDirectories.txt
+CMakeConfigureLog.yaml
+rules.ninja
+clean_additional.cmake
+cmake.check_cache
+bootloader-complete
+*.dir/
+pkgRedirects/
+git-data/
+config/
+kconfig_menus.json
+sdkconfig.cmake
+sdkconfig.h
+sdkconfig.json
+flash_*.args
+*-flash_args
+partition-table-flash_args
+
+# SDK configuration (generated files)
+sdkconfig
+sdkconfig.old
+
+# Managed components
+managed_components/
+
+# Tools
+tools/
+
+# Logs
+*.log
+log/
+
+# Temporary files
+*.tmp
+*.swp
+*.bak
+
+# IDE files
+.vscode/
+.idea/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Dependencies lock file (if not tracked)
+dependencies.lock
+fulllog.txt
+fulllog.txt
+
+
+# misc
+secrets.txt
+monitor_log*
+fulllog*
+cat*.exe
+*.exe
+*.IMG
+*.img
+msdos/
+msdos
+build*.txt
+old_*.html
+build_monitor.py
+
+# Markdown files (ignore all except README.md)
+*.md
+!README.md

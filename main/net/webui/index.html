@@ -1,0 +1,2291 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M5PaperDOS</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body {
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #fbfcff 0%, #f4f6fb 100%);
+    }
+
+    /* Dark Theme Terminal */
+    .terminal-container {
+      background: #1e1e1e;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      min-height: 520px;
+    }
+
+    .dos-terminal {
+      background: #000;
+      color: #e0e0e0;
+      font-family: "IBM Plex Mono", "BigBlueTerminal", "Perfect DOS VGA 437", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 16px;
+      line-height: 1.0;
+      white-space: pre;
+      /* Use pre for exact alignment */
+      overflow-y: scroll;
+      /* Always show scrollbar track */
+      overflow-x: auto;
+      height: 520px;
+      /* Fixed height container */
+      padding: 4px;
+      margin: 0;
+      display: block;
+      position: relative;
+      z-index: 1;
+    }
+
+    .graphics-mirror {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      z-index: 2;
+      pointer-events: none;
+      background: #000;
+      image-rendering: pixelated;
+      object-fit: contain;
+    }
+
+    .terminal-container.graphics-active .graphics-mirror {
+      display: block;
+    }
+
+    .gfx-select {
+      width: 92px;
+    }
+
+    .gfx-res-select {
+      width: 112px;
+    }
+
+    @media (max-width: 991px) {
+      .terminal-container {
+        min-height: 420px;
+      }
+
+      .dos-terminal {
+        height: 420px;
+      }
+    }
+
+    .dos-terminal:focus {
+      outline: 2px solid #0d6efd;
+      outline-offset: -2px;
+    }
+
+    /* Custom Scrollbar for Terminal */
+    .dos-terminal::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+
+    .dos-terminal::-webkit-scrollbar-track {
+      background: #333;
+    }
+
+    .dos-terminal::-webkit-scrollbar-thumb {
+      background: #666;
+      border: 2px solid #333;
+      border-radius: 6px;
+    }
+
+    .dos-terminal::-webkit-scrollbar-thumb:hover {
+      background: #888;
+    }
+
+    /* Control Pad */
+    .mouse-pad {
+      height: 240px;
+      background: #f8f9fa;
+      border: 2px dashed #dee2e6;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #adb5bd;
+      touch-action: none;
+      user-select: none;
+      cursor: crosshair;
+      transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+    }
+
+    .mouse-pad.is-pressed {
+      background: #f1f3f6;
+      border-color: #cbd3dc;
+      color: #8a93a4;
+    }
+
+    .key-btn {
+      min-width: 52px;
+    }
+
+    /* Explorer */
+    .explorer-tree {
+      height: 400px;
+      overflow-y: auto;
+      border-right: 1px solid #dee2e6;
+    }
+
+    .tree-item {
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tree-item:hover {
+      background: #e9ecef;
+    }
+
+    .tree-item.active {
+      background: #e7f1ff;
+      color: #0d6efd;
+    }
+
+    .fm-context-menu {
+      position: fixed;
+      z-index: 1050;
+      min-width: 160px;
+      background: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+      display: none;
+      padding: 4px 0;
+    }
+
+    .fm-context-menu button {
+      display: block;
+      width: 100%;
+      border: 0;
+      background: transparent;
+      padding: 6px 12px;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    .fm-context-menu button:hover {
+      background: #f1f5ff;
+    }
+
+    .fm-context-menu button:disabled {
+      color: #adb5bd;
+    }
+
+    .drop-zone-active {
+      outline: 2px dashed #0d6efd;
+      outline-offset: -4px;
+      background: #f1f5ff;
+    }
+
+    .tree-item.drop-target-active,
+    tr.drop-target-active {
+      background: #e7f1ff;
+    }
+
+    tr.drop-target-active>td {
+      background: #e7f1ff;
+    }
+
+    /* Utility classes */
+    .status-dot {
+      height: 10px;
+      width: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    .bg-connected {
+      background-color: #198754;
+    }
+
+    .bg-disconnected {
+      background-color: #dc3545;
+    }
+
+    .bg-busy {
+      background-color: #ffc107;
+    }
+
+    fieldset {
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      height: 100%;
+    }
+
+    legend {
+      float: none;
+      width: auto;
+      padding: 0 0.5rem;
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: #6c757d;
+    }
+  </style>
+</head>
+
+<body class="pb-5">
+
+  <nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 shadow-sm border-bottom">
+    <div class="container">
+      <a class="navbar-brand" href="#">
+        <i class="bi bi-floppy2-fill me-2"></i>M5PaperDOS
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarContent">
+        <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
+          <li class="nav-item">
+            <span class="nav-link text-muted"><span id="connectionStatus"
+                class="status-dot bg-disconnected"></span><span id="connectionText">Disconnected</span></span>
+          </li>
+          <li class="nav-item">
+            <span class="nav-link text-muted"><span id="btKeyboardStatus"
+                class="status-dot bg-disconnected"></span><span id="btKeyboardText">BT Keyboard:
+                Disconnected</span></span>
+          </li>
+          <li class="nav-item ms-2">
+            <button class="btn btn-sm btn-danger" id="btnPowerCycle">Reboot Device</button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- Row: Terminal & Controls -->
+    <div class="row g-4 mb-5">
+      <!-- Terminal Column -->
+      <div class="col-lg-8">
+        <div class="card shadow-sm h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-terminal me-2"></i>Console</h5>
+            <div class="d-flex align-items-center gap-2">
+              <div class="small text-muted" id="videoModeLabel">Text Mode</div>
+              <div class="d-flex align-items-center gap-1">
+                <span class="small text-muted">Mirror</span>
+                <select class="form-select form-select-sm gfx-select" id="gfxRefreshSelect">
+                  <option value="0">Off</option>
+                  <option value="500">2Hz</option>
+                  <option value="200">5Hz</option>
+                  <option value="100">10Hz</option>
+                  <option value="1000">1Hz</option>
+                  <option value="2000">0.5Hz</option>
+                </select>
+              </div>
+              <div class="d-flex align-items-center gap-1">
+                <span class="small text-muted">Res</span>
+                <select class="form-select form-select-sm gfx-res-select" id="gfxResSelect">
+                  <option value="240x135">240x135</option>
+                  <option value="320x180">320x180</option>
+                  <option value="320x200">320x200</option>
+                  <option value="480x270">480x270</option>
+                  <option value="960x540">960x540</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="card-body p-0 bg-dark position-relative">
+            <div id="terminalWrapper" class="terminal-container">
+              <pre id="dosTerminal" class="dos-terminal" tabindex="0"></pre>
+              <canvas id="graphicsMirror" class="graphics-mirror" aria-hidden="true"></canvas>
+            </div>
+            <!-- Hidden input for mobile keyboard -->
+            <input type="text" id="mobileInput"
+              style="position:absolute; opacity:0; top:0; left:0; height:0; width:0; pointer-events:none;"
+              autocapitalize="off" autocorrect="off">
+          </div>
+          <div class="card-footer d-flex justify-content-between">
+            <button class="btn btn-sm btn-outline-secondary" id="btnClearTerm">Clear Buffer</button>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-outline-primary" id="btnFocusTerm"><i class="bi bi-keyboard me-1"></i>Focus
+                Keyboard</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls Column -->
+      <div class="col-lg-4">
+        <!-- Mouse Pad -->
+        <div class="card shadow-sm mb-3">
+          <div class="card-header"><i class="bi bi-mouse me-2"></i>Mouse Control</div>
+          <div class="card-body p-2">
+            <div id="mousePad" class="mouse-pad" tabindex="0">
+              <span>Touch / Drag</span>
+            </div>
+            <div class="text-center text-muted small mt-2">
+              Click=Left | Right-Click=Right
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Keys -->
+        <div class="card shadow-sm">
+          <div class="card-header"><i class="bi bi-grid-3x3-gap me-2"></i>Quick Keys</div>
+          <div class="card-body">
+            <div class="d-flex flex-wrap gap-2 justify-content-center" id="mobileControls">
+              <button class="btn btn-outline-secondary key-btn" id="ctrlBtn">Ctrl</button>
+              <button class="btn btn-outline-secondary key-btn" id="altBtn">Alt</button>
+              <button class="btn btn-outline-secondary key-btn" data-ascii="27" data-sc="1">Esc</button>
+              <button class="btn btn-outline-secondary key-btn" data-ascii="9" data-sc="15">Tab</button>
+              <div class="w-100"></div>
+              <button class="btn btn-outline-secondary key-btn" data-ascii="13" data-sc="28">Enter</button>
+              <button class="btn btn-outline-danger key-btn" data-ascii="8" data-sc="14">Bksp</button>
+              <div class="w-100"></div>
+              <button class="btn btn-light border key-btn" data-ext="1" data-sc="72">Up</button>
+              <div class="w-100"></div>
+              <button class="btn btn-light border key-btn" data-ext="1" data-sc="75">Left</button>
+              <button class="btn btn-light border key-btn" data-ext="1" data-sc="80">Down</button>
+              <button class="btn btn-light border key-btn" data-ext="1" data-sc="77">Right</button>
+            </div>
+            <div class="form-check form-switch mt-3">
+              <input class="form-check-input" type="checkbox" id="chkLegacyArrows">
+              <label class="form-check-label small" for="chkLegacyArrows">Legacy arrows (keypad scancodes)</label>
+            </div>
+            <div class="small text-muted">Maps arrows + numpad 2/4/6/8 to non-extended scancodes.</div>
+            <div class="form-check form-switch mt-2">
+              <input class="form-check-input" type="checkbox" id="chkNumlockArrows">
+              <label class="form-check-label small" for="chkNumlockArrows">NumLock digits for arrows</label>
+            </div>
+            <div class="small text-muted">Sends ASCII 2/4/6/8 and sets NumLock while using arrows.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Storage Management Section -->
+    <div class="card shadow-sm mb-5">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-hdd-fill me-2"></i>Storage Management</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-4">
+          <!-- Hard Drive (C:) Settings -->
+          <div class="col-md-6 border-end">
+            <h6 class="text-primary border-bottom pb-2">Hard Drive (C:)</h6>
+            <form id="formCDrive">
+              <div class="mb-3">
+                <label class="form-label small fw-bold">Active Image</label>
+                <div class="input-group">
+                  <select class="form-select" id="cDriveSelect"></select>
+                  <button class="btn btn-outline-secondary" type="button" id="btnReloadCDrive">
+                    <i class="bi bi-arrow-clockwise"></i>
+                  </button>
+                </div>
+                <div class="form-text">Selected image is mounted as C: drive.</div>
+              </div>
+
+              <div class="mb-3 form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="chkDos33Compat">
+                <label class="form-check-label" for="chkDos33Compat">DOS 3.3 Compatibility (Legacy CHS)</label>
+              </div>
+              <div class="alert alert-warning small py-2 d-none" id="compatWarning">
+                Warning: Legacy CHS limits partition size. Only use for small images.
+              </div>
+
+              <button class="btn btn-primary btn-sm w-100 mb-2" type="submit">Apply Change (Reboots System)</button>
+              <button class="btn btn-outline-success btn-sm w-100" type="button" data-bs-toggle="modal"
+                data-bs-target="#newHdModal">
+                <i class="bi bi-plus-circle me-1"></i>Create New Hard Drive Image...
+              </button>
+            </form>
+          </div>
+
+          <!-- Floppy Drive (A/B) and Boot -->
+          <div class="col-md-6">
+            <h6 class="text-primary border-bottom pb-2">Floppy (A/B) & Boot</h6>
+
+            <div class="mb-4">
+              <label class="form-label small fw-bold">Active Image (A:)</label>
+              <form id="formFloppyA">
+                <div class="input-group mb-2">
+                  <select class="form-select" id="aDriveSelect"></select>
+                  <button class="btn btn-secondary" type="submit">Mount</button>
+                </div>
+                <div class="form-text">Select a floppy image (up to 1.44MB) to mount as A:.</div>
+                <div id="statusSelectA" class="small text-muted mt-1"></div>
+              </form>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label small fw-bold">Diskette Swap (A:)</label>
+              <form id="uploadFormA">
+                <div class="input-group mb-2">
+                  <input type="file" class="form-control" id="fileA" name="disk1" accept=".img,application/octet-stream"
+                    required>
+                  <button class="btn btn-outline-primary" type="submit">Upload &amp; Swap</button>
+                </div>
+                <div class="form-text">Writes to <code>/sdcard/disk1.img</code> (1.44MB recommended). Used as A: when
+                  booting from C:.</div>
+                <div id="statusA" class="small text-muted mt-1"></div>
+                <div class="progress mt-2" style="height: 8px; display:none;" id="progressWrapA">
+                  <div class="progress-bar" role="progressbar" style="width: 0%" id="progressBarA"></div>
+                </div>
+              </form>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label small fw-bold">Active Image (B:)</label>
+              <form id="formFloppyB">
+                <div class="input-group mb-2">
+                  <select class="form-select" id="bDriveSelect"></select>
+                  <button class="btn btn-secondary" type="submit">Mount</button>
+                </div>
+                <div class="form-text">Select a floppy image (up to 1.44MB) to mount as B:.</div>
+                <div id="statusSelectB" class="small text-muted mt-1"></div>
+              </form>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label small fw-bold">Diskette Swap (B:)</label>
+              <form id="uploadForm">
+                <div class="input-group mb-2">
+                  <input type="file" class="form-control" id="file" name="disk2" accept=".img,application/octet-stream"
+                    required>
+                  <button class="btn btn-outline-primary" type="submit">Upload &amp; Swap</button>
+                </div>
+                <div class="form-text">Writes to <code>/sdcard/disk2.img</code> (1.44MB recommended).</div>
+                <div id="status" class="small text-muted mt-1"></div>
+                <div class="progress mt-2" style="height: 8px; display:none;" id="progressWrap">
+                  <div class="progress-bar" role="progressbar" style="width: 0%" id="progressBar"></div>
+                </div>
+              </form>
+            </div>
+
+            <div>
+              <label class="form-label small fw-bold">Boot Priority (NVRAM)</label>
+              <form id="formBoot">
+                <div class="input-group mb-2">
+                  <span class="input-group-text"><i class="bi bi-bootstrap-reboot"></i></span>
+                  <select class="form-select" id="bootSelect"></select>
+                  <button class="btn btn-secondary" type="submit">Save</button>
+                </div>
+                <div class="form-text">Select which disk is the boot device (A:). Use 'C:' to boot from Hard Drive.
+                </div>
+              </form>
+            </div>
+
+            <div class="mt-4">
+              <label class="form-label small fw-bold">Upload to SD Card</label>
+              <div class="d-flex flex-wrap gap-2 align-items-center">
+                <input class="form-control" type="file" id="sdUploadInput" multiple>
+                <button class="btn btn-outline-primary" type="button" id="sdUploadBtn">Upload</button>
+                <div id="sdUploadStatus" class="small text-muted"></div>
+              </div>
+              <div class="progress mt-2" style="height: 8px; display:none;" id="sdUploadProgressWrap">
+                <div class="progress-bar" role="progressbar" style="width: 0%" id="sdUploadProgressBar"></div>
+              </div>
+              <div class="form-text">Uploads to <code>/sdcard/</code>. Filenames may be sanitized if unsupported by the
+                SD filesystem.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- File Manager -->
+    <div class="card shadow-sm mb-5">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-folder2-open me-2"></i>File Explorer (Drive C:)
+          <span id="fileExplorerImage" class="text-muted small ms-2 font-monospace"></span>
+        </h5>
+        <div>
+          <button class="btn btn-sm btn-outline-secondary me-1" id="btnRefreshFiles"><i
+              class="bi bi-arrow-repeat"></i></button>
+          <button class="btn btn-sm btn-success" id="btnUploadFilesTrigger"><i class="bi bi-upload"></i> Upload</button>
+          <input type="file" multiple id="fileUploadInput" class="d-none">
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="row g-0">
+          <div class="col-md-3 explorer-tree p-2 bg-light drop-zone" id="fileTree" data-drop-path="/"></div>
+          <div class="col-md-9 p-0 drop-zone" id="fileListPane" data-drop-path="/">
+            <div class="p-2 border-bottom d-flex align-items-center bg-white">
+              <button class="btn btn-sm btn-link text-decoration-none" id="btnUpDir"><i
+                  class="bi bi-arrow-90deg-up"></i> Up</button>
+              <span class="text-muted mx-2">|</span>
+              <span id="currentPath" class="fw-bold font-monospace">/</span>
+              <div class="ms-auto">
+                <button class="btn btn-sm btn-link text-secondary" id="btnMkdir"><i class="bi bi-folder-plus"></i> New
+                  Folder</button>
+              </div>
+            </div>
+            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+              <table class="table table-hover table-sm mb-0">
+                <thead class="table-light sticky-top">
+                  <tr>
+                    <th>Name</th>
+                    <th>Size</th>
+                    <th>Date</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="fileListBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="fmContextMenu" class="fm-context-menu" aria-hidden="true">
+        <button type="button" id="fmCtxRename">Rename</button>
+        <button type="button" id="fmCtxDelete">Delete</button>
+      </div>
+      <div class="card-footer small d-flex justify-content-between">
+        <span class="text-muted">Uploads overwrite existing files. Deletes are permanent.</span>
+        <span id="fmStatus"></span>
+      </div>
+    </div>
+
+    <!-- System Configuration -->
+    <div class="card shadow-sm mb-5">
+      <div class="card-header"><i class="bi bi-gear-fill me-2"></i>System Configuration</div>
+      <div class="card-body">
+        <form id="formSettings">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <fieldset>
+                <legend><i class="bi bi-display me-1"></i>Display</legend>
+                <div class="mb-3">
+                  <label class="form-label small">Target FPS</label>
+                  <input type="number" class="form-control" name="fps" step="0.1" min="0">
+                  <div class="form-text">0 = Unlimited</div>
+                </div>
+                <div class="form-check form-switch mb-2">
+                  <input class="form-check-input" type="checkbox" name="partial_refresh">
+                  <label class="form-check-label small">Partial Refresh</label>
+                </div>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="pause_cpu_on_refresh">
+                  <label class="form-check-label small">Pause CPU on Refresh</label>
+                </div>
+                <div class="form-check form-switch mt-2">
+                  <input class="form-check-input" type="checkbox" name="clear_on_bottom">
+                  <label class="form-check-label small">Clear on Bottom (TTY)</label>
+                </div>
+              </fieldset>
+            </div>
+
+            <div class="col-md-4">
+              <fieldset>
+                <legend><i class="bi bi-wifi me-1"></i>Connectivity</legend>
+                <div class="form-check form-switch mb-2">
+                  <input class="form-check-input" type="checkbox" name="wifi_enabled">
+                  <label class="form-check-label small">WiFi Enabled</label>
+                </div>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="bt_keyboard_enabled">
+                  <label class="form-check-label small">Bluetooth Keyboard/Mouse</label>
+                </div>
+                <div class="form-check form-switch mt-2">
+                  <input class="form-check-input" type="checkbox" name="gameport_enabled">
+                  <label class="form-check-label small">Gameport (Joystick) Enabled</label>
+                </div>
+                <div class="small text-muted">Disable if a game ignores keyboard input.</div>
+                <div class="mt-3 text-muted small">
+                  Disabling WiFi saves power but requires reboot to re-enable via config file or serial.
+                </div>
+              </fieldset>
+            </div>
+
+            <div class="col-md-4">
+              <fieldset class="bg-light border-0">
+                <legend><i class="bi bi-power me-1"></i>Power & &nbsp; Reset</legend>
+                <div class="d-grid gap-2">
+                  <button type="button" class="btn btn-outline-warning btn-sm" id="btnRebootDosConfig"><i
+                      class="bi bi-arrow-repeat me-2"></i>Reboot DOS Kernel</button>
+                  <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-2"></i>Save
+                    Configuration</button>
+                </div>
+                <div id="configStatus" class="mt-2 text-center small text-muted"></div>
+              </fieldset>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Logs -->
+    <div class="accordion mb-5" id="accordionLogs">
+      <div class="accordion-item">
+        <h2 class="accordion-header d-flex align-items-center flex-nowrap">
+          <button class="accordion-button collapsed flex-grow-1 text-start pe-3" type="button" data-bs-toggle="collapse"
+            data-bs-target="#collapseLogs">
+            <i class="bi bi-list-columns-reverse me-2"></i>
+            <span class="me-3">Debug Log Levels</span>
+          </button>
+          <div class="ms-3 d-flex gap-1 flex-shrink-0 align-items-center" onclick="event.stopPropagation()">
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="btnLogEnableAll">Enable All</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="btnLogDisableAll">Disable All</button>
+          </div>
+        </h2>
+        <div id="collapseLogs" class="accordion-collapse collapse">
+          <div class="accordion-body">
+            <form id="logForm">
+              <div id="logTableBody" class="row row-cols-2 row-cols-md-4 g-2 mb-3"></div>
+              <div class="d-flex justify-content-between align-items-center">
+                <div id="logStatus" class="small"></div>
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Apply Levels</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal: New HD -->
+  <div class="modal fade" id="newHdModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Create New Hard Drive Image</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formNewHd">
+            <div class="mb-3">
+              <label class="form-label">Filename</label>
+              <div class="input-group">
+                <span class="input-group-text">/c_drive/</span>
+                <input type="text" class="form-control" name="name" placeholder="new_drive" required>
+                <span class="input-group-text">.img</span>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Size preset</label>
+              <div class="d-flex flex-wrap gap-2" id="newHdPresets">
+                <button type="button" class="btn btn-outline-secondary hd-preset" data-size="32" data-dos33="1">DOS 3.3
+                  (32MB)</button>
+                <button type="button" class="btn btn-outline-secondary hd-preset" data-size="512" data-dos33="0"
+                  data-default="1">Classic (512MB)</button>
+                <button type="button" class="btn btn-outline-secondary hd-preset" data-size="2048" data-dos33="0">Large
+                  (2GB)</button>
+              </div>
+              <input type="hidden" name="size" id="newHdSize" value="512">
+              <input type="hidden" name="dos33" id="newHdDos33" value="0">
+              <div class="form-text">Presets cover DOS 3.3 (32MB), classic, and max FAT16.</div>
+            </div>
+            <div id="newHdStatus" class="small mb-2"></div>
+            <button type="submit" class="btn btn-success w-100">Generate & Select</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const STATE = {
+      screenVersion: 0,
+      scrollbackVersion: 0,
+      termAutoScroll: true,
+      termHash: 0,
+      pollerId: null,
+      graphicsMode: false,
+      graphicsPollMs: 500,
+      graphicsMirrorWidth: 240,
+      graphicsMirrorHeight: 135,
+      textCols: 80,
+      textRows: 25,
+      textBuffer: Array(25).fill(""),
+      scrollback: [],
+      maxScrollback: 3000,
+      lastConnection: 0,
+      legacyArrows: true,
+      numlockArrows: false
+    };
+
+    const UI = {
+      term: document.getElementById('dosTerminal'),
+      termContainer: document.getElementById('terminalWrapper'),
+      modeLabel: document.getElementById('videoModeLabel'),
+      gfxCanvas: document.getElementById('graphicsMirror'),
+      gfxRefresh: document.getElementById('gfxRefreshSelect'),
+      gfxRes: document.getElementById('gfxResSelect'),
+      mobileInput: document.getElementById('mobileInput'),
+      connStatus: document.getElementById('connectionStatus'),
+      connText: document.getElementById('connectionText'),
+      btStatus: document.getElementById('btKeyboardStatus'),
+      btText: document.getElementById('btKeyboardText'),
+      legacyArrows: document.getElementById('chkLegacyArrows'),
+      numlockArrows: document.getElementById('chkNumlockArrows'),
+    };
+
+    const LEGACY_ARROWS_KEY = 'legacy_arrows';
+    const NUMLOCK_ARROWS_KEY = 'numlock_arrows';
+    const GFX_MIRROR_MS_KEY = 'gfx_mirror_ms';
+    const GFX_MIRROR_RES_KEY = 'gfx_mirror_res';
+    const GFX_MIRROR_DEFAULT_MS = 500;
+    const GFX_MIRROR_MS_OPTIONS = [0, 100, 200, 500, 1000, 2000];
+    const GFX_MIRROR_DEFAULT_RES = '240x135';
+    const GFX_MIRROR_RES_OPTIONS = ['240x135', '320x180', '320x200', '480x270', '960x540'];
+    try {
+      const saved = localStorage.getItem(LEGACY_ARROWS_KEY);
+      if (saved !== null) STATE.legacyArrows = (saved === '1');
+    } catch (e) { }
+    try {
+      const saved = localStorage.getItem(NUMLOCK_ARROWS_KEY);
+      if (saved !== null) STATE.numlockArrows = (saved === '1');
+    } catch (e) { }
+    if (UI.legacyArrows) {
+      UI.legacyArrows.checked = STATE.legacyArrows;
+      UI.legacyArrows.addEventListener('change', e => {
+        STATE.legacyArrows = !!e.target.checked;
+        try { localStorage.setItem(LEGACY_ARROWS_KEY, STATE.legacyArrows ? '1' : '0'); } catch (err) { }
+      });
+    }
+    if (UI.numlockArrows) {
+      UI.numlockArrows.checked = STATE.numlockArrows;
+      UI.numlockArrows.addEventListener('change', e => {
+        STATE.numlockArrows = !!e.target.checked;
+        try { localStorage.setItem(NUMLOCK_ARROWS_KEY, STATE.numlockArrows ? '1' : '0'); } catch (err) { }
+      });
+    }
+
+    try {
+      const saved = localStorage.getItem(GFX_MIRROR_MS_KEY);
+      if (saved !== null) {
+        const v = parseInt(saved, 10);
+        if (!Number.isNaN(v) && GFX_MIRROR_MS_OPTIONS.includes(v)) {
+          STATE.graphicsPollMs = v;
+        }
+      }
+    } catch (e) { }
+    if (!GFX_MIRROR_MS_OPTIONS.includes(STATE.graphicsPollMs)) {
+      STATE.graphicsPollMs = GFX_MIRROR_DEFAULT_MS;
+    }
+    if (UI.gfxRefresh) {
+      UI.gfxRefresh.value = String(STATE.graphicsPollMs);
+      UI.gfxRefresh.addEventListener('change', e => {
+        const v = parseInt(e.target.value, 10);
+        setGraphicsPollMs(Number.isNaN(v) ? GFX_MIRROR_DEFAULT_MS : v);
+      });
+    }
+
+    let mirrorResInit = GFX_MIRROR_DEFAULT_RES;
+    try {
+      const saved = localStorage.getItem(GFX_MIRROR_RES_KEY);
+      if (saved !== null && GFX_MIRROR_RES_OPTIONS.includes(saved)) {
+        mirrorResInit = saved;
+      }
+    } catch (e) { }
+    setGraphicsMirrorResolution(mirrorResInit);
+    if (UI.gfxRes) {
+      UI.gfxRes.addEventListener('change', e => {
+        setGraphicsMirrorResolution(e.target.value);
+      });
+    }
+
+    let gfxCtx = null;
+    if (UI.gfxCanvas) {
+      gfxCtx = UI.gfxCanvas.getContext('2d');
+      if (gfxCtx) {
+        gfxCtx.imageSmoothingEnabled = false;
+      }
+    }
+
+    function sanitize(text) {
+      return text.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function graphicsMirrorEnabled() {
+      return STATE.graphicsPollMs > 0;
+    }
+
+    function mirrorRateLabel(ms) {
+      if (ms <= 0) return "mirror off";
+      const hz = 1000 / ms;
+      const rounded = Math.abs(hz - Math.round(hz)) < 0.01 ? String(Math.round(hz)) : hz.toFixed(1);
+      return `mirror ${rounded}Hz`;
+    }
+
+    function updateVideoModeLabel() {
+      if (!UI.modeLabel) return;
+      if (STATE.graphicsMode) {
+        UI.modeLabel.textContent = `Graphics Mode (${mirrorRateLabel(STATE.graphicsPollMs)})`;
+      } else {
+        UI.modeLabel.textContent = `Text Mode (${STATE.textCols}x${STATE.textRows})`;
+      }
+    }
+
+    function updateGraphicsMirrorVisibility() {
+      if (!UI.termContainer) return;
+      const show = STATE.graphicsMode && graphicsMirrorEnabled();
+      UI.termContainer.classList.toggle('graphics-active', show);
+    }
+
+    function applyGraphicsMode(isGraphics) {
+      const prev = STATE.graphicsMode;
+      STATE.graphicsMode = isGraphics;
+      if (prev !== isGraphics) {
+        updateGraphicsMirrorVisibility();
+      }
+    }
+
+    function setGraphicsPollMs(ms) {
+      const v = GFX_MIRROR_MS_OPTIONS.includes(ms) ? ms : GFX_MIRROR_DEFAULT_MS;
+      STATE.graphicsPollMs = v;
+      if (UI.gfxRefresh) {
+        UI.gfxRefresh.value = String(v);
+      }
+      try { localStorage.setItem(GFX_MIRROR_MS_KEY, String(v)); } catch (err) { }
+      updateGraphicsMirrorVisibility();
+      updateVideoModeLabel();
+    }
+
+    function parseResolution(value) {
+      if (!value) return null;
+      const m = String(value).match(/^(\d+)x(\d+)$/);
+      if (!m) return null;
+      const w = parseInt(m[1], 10);
+      const h = parseInt(m[2], 10);
+      if (Number.isNaN(w) || Number.isNaN(h)) return null;
+      return { w, h };
+    }
+
+    function setGraphicsMirrorResolution(value) {
+      const picked = GFX_MIRROR_RES_OPTIONS.includes(value) ? value : GFX_MIRROR_DEFAULT_RES;
+      const res = parseResolution(picked);
+      if (!res) return;
+      STATE.graphicsMirrorWidth = res.w;
+      STATE.graphicsMirrorHeight = res.h;
+      if (UI.gfxRes) {
+        UI.gfxRes.value = picked;
+      }
+      try { localStorage.setItem(GFX_MIRROR_RES_KEY, picked); } catch (err) { }
+      updateVideoModeLabel();
+    }
+
+    // Cache the last rendered scrollback length to avoid re-rendering
+    let lastRenderedScrollbackLen = 0;
+    let lastRenderedScrollbackVer = 0;
+
+    function renderTerminal() {
+      // Only re-render scrollback if it changed
+      const sbChanged = STATE.scrollbackVersion !== lastRenderedScrollbackVer || STATE.scrollback.length !== lastRenderedScrollbackLen;
+
+      let content = "";
+      if (STATE.scrollback.length > 0) {
+        content += STATE.scrollback.map(l => `<span class="text-secondary opacity-75">${sanitize(l)}</span>`).join('\n') + '\n';
+        content += `<span class="text-primary my-1 d-block border-top border-secondary opacity-25"></span>`;
+      }
+      content += STATE.textBuffer.map(l => sanitize(l)).join('\n');
+      UI.term.innerHTML = content;
+
+      lastRenderedScrollbackLen = STATE.scrollback.length;
+      lastRenderedScrollbackVer = STATE.scrollbackVersion;
+
+      if (STATE.termAutoScroll) UI.term.scrollTop = UI.term.scrollHeight;
+    }
+
+    // Process screen update with device-provided scrollback
+    function processScreenUpdate(newText, rows, scrollbackData) {
+      const newLines = newText.split('\n');
+      while (newLines.length < rows) newLines.push("");
+      if (newLines.length > rows) newLines.length = rows;
+
+      // If device provided scrollback data, use it directly (replaces client-side detection)
+      if (scrollbackData && scrollbackData.length > 0) {
+        // Parse the scrollback text from device - it's newline-separated lines
+        const deviceScrollback = scrollbackData.split('\n').filter(l => l.length > 0);
+        STATE.scrollback = deviceScrollback;
+      }
+
+      // Cap scrollback (just in case)
+      if (STATE.scrollback.length > STATE.maxScrollback) STATE.scrollback = STATE.scrollback.slice(-STATE.maxScrollback);
+
+      STATE.textBuffer = newLines;
+    }
+
+    UI.term.addEventListener('scroll', () => {
+      const dist = UI.term.scrollHeight - UI.term.clientHeight - UI.term.scrollTop;
+      STATE.termAutoScroll = (dist < 20);
+    });
+
+    function base64ToBytes(b64) {
+      if (!b64) return new Uint8Array(0);
+      const bin = atob(b64);
+      const len = bin.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = bin.charCodeAt(i);
+      }
+      return bytes;
+    }
+
+    let gfxImageData = null;
+    function renderGraphicsFrame(width, height, b64) {
+      if (!gfxCtx || !UI.gfxCanvas) return;
+      if (UI.gfxCanvas.width !== width || UI.gfxCanvas.height !== height || !gfxImageData) {
+        UI.gfxCanvas.width = width;
+        UI.gfxCanvas.height = height;
+        gfxCtx.imageSmoothingEnabled = false;
+        gfxImageData = gfxCtx.createImageData(width, height);
+      }
+
+      const pixels = base64ToBytes(b64);
+      const expected = width * height;
+      if (pixels.length < expected) return;
+
+      const out = gfxImageData.data;
+      for (let i = 0, j = 0; i < expected; i++, j += 4) {
+        const v = pixels[i];
+        out[j] = v;
+        out[j + 1] = v;
+        out[j + 2] = v;
+        out[j + 3] = 255;
+      }
+      gfxCtx.putImageData(gfxImageData, 0, 0);
+    }
+
+    async function pollGraphicsMirror() {
+      if (!STATE.graphicsMode || !graphicsMirrorEnabled() || !UI.gfxCanvas) return;
+      if (STATE._gfxPollInFlight) return;
+      STATE._gfxPollInFlight = true;
+      try {
+        const data = await withTimeout(async (signal) => {
+          const url = `/api/terminal/framebuffer?w=${STATE.graphicsMirrorWidth}&h=${STATE.graphicsMirrorHeight}`;
+          const res = await fetch(url, { cache: 'no-store', signal });
+          if (!res.ok) throw new Error(res.statusText);
+          return await res.json();
+        }, 3000);
+
+        if (!data) return;
+        if (data.graphics === false) {
+          applyGraphicsMode(false);
+          updateVideoModeLabel();
+          return;
+        }
+        if (data.width && data.height && data.data) {
+          renderGraphicsFrame(data.width, data.height, data.data);
+        }
+      } catch (e) {
+        // Ignore transient mirror errors.
+      } finally {
+        STATE._gfxPollInFlight = false;
+      }
+    }
+
+    async function pollTerminal() {
+      if (STATE._pollInFlight) return;
+      STATE._pollInFlight = true;
+      try {
+        const res = await fetch(`/api/terminal/screen?v=${STATE.screenVersion}&sbv=${STATE.scrollbackVersion}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error(res.statusText);
+        STATE.lastConnection = Date.now();
+        updateConnectionStatus(true);
+        const data = await res.json();
+        if (data.bt_keyboard_connected !== undefined) {
+          updateBtKeyboardStatus(!!data.bt_keyboard_connected);
+        }
+
+        if (data.graphics !== undefined) {
+          applyGraphicsMode(!!data.graphics);
+        }
+        if (data.cols !== undefined && data.rows !== undefined) {
+          STATE.textCols = data.cols;
+          STATE.textRows = data.rows;
+        }
+
+        if (!data.unchanged) {
+          STATE.screenVersion = data.version || (STATE.screenVersion + 1);
+          if (data.scrollback_version !== undefined) {
+            STATE.scrollbackVersion = data.scrollback_version;
+          }
+          if (!data.graphics) {
+            // Pass device-provided scrollback to processScreenUpdate
+            processScreenUpdate(data.text, data.rows, data.scrollback || null);
+            renderTerminal();
+          }
+        } else {
+          // Update scrollback version even on unchanged
+          if (data.scrollback_version !== undefined) {
+            STATE.scrollbackVersion = data.scrollback_version;
+          }
+          // Unchanged. Leave last rendered text in place.
+        }
+        updateVideoModeLabel();
+      } catch (e) {
+        updateConnectionStatus(false);
+        updateBtKeyboardStatus(false);
+      } finally {
+        STATE._pollInFlight = false;
+      }
+    }
+
+    function updateConnectionStatus(connected) {
+      if (connected) {
+        UI.connStatus.className = 'status-dot bg-connected';
+        UI.connText.textContent = 'Connected';
+      } else {
+        UI.connStatus.className = 'status-dot bg-disconnected';
+        UI.connText.textContent = 'Disconnected';
+      }
+    }
+
+    function updateBtKeyboardStatus(connected) {
+      if (connected) {
+        UI.btStatus.className = 'status-dot bg-connected';
+        UI.btText.textContent = 'BT Keyboard: Connected';
+      } else {
+        UI.btStatus.className = 'status-dot bg-disconnected';
+        UI.btText.textContent = 'BT Keyboard: Disconnected';
+      }
+    }
+
+    // Input Helpers
+    async function sendKey(sc, ascii, pressed, ext) {
+      const p = new URLSearchParams({ sc: sc || 0, ascii: ascii || 0, pressed: pressed ? 1 : 0, ext: ext ? 1 : 0, numlock: STATE.numlockArrows ? 1 : 0 });
+      fetch('/api/terminal/key', { method: 'POST', body: p }).catch(() => { });
+    }
+    async function sendMouse(dx, dy, btns) {
+      const p = new URLSearchParams({ dx: Math.round(dx), dy: Math.round(dy), buttons: btns });
+      fetch('/api/terminal/mouse', { method: 'POST', body: p }).catch(() => { });
+    }
+
+    const SCANCODE_BY_CODE = {
+      KeyA: 0x1E, KeyB: 0x30, KeyC: 0x2E, KeyD: 0x20, KeyE: 0x12, KeyF: 0x21, KeyG: 0x22, KeyH: 0x23,
+      KeyI: 0x17, KeyJ: 0x24, KeyK: 0x25, KeyL: 0x26, KeyM: 0x32, KeyN: 0x31, KeyO: 0x18, KeyP: 0x19,
+      KeyQ: 0x10, KeyR: 0x13, KeyS: 0x1F, KeyT: 0x14, KeyU: 0x16, KeyV: 0x2F, KeyW: 0x11, KeyX: 0x2D,
+      KeyY: 0x15, KeyZ: 0x2C,
+      Digit1: 0x02, Digit2: 0x03, Digit3: 0x04, Digit4: 0x05, Digit5: 0x06, Digit6: 0x07, Digit7: 0x08,
+      Digit8: 0x09, Digit9: 0x0A, Digit0: 0x0B,
+      Minus: 0x0C, Equal: 0x0D, Backquote: 0x29,
+      BracketLeft: 0x1A, BracketRight: 0x1B, Backslash: 0x2B,
+      Semicolon: 0x27, Quote: 0x28,
+      Comma: 0x33, Period: 0x34, Slash: 0x35,
+      Space: 0x39
+    };
+
+    const SCANCODE_BY_CHAR = {
+      'a': 0x1E, 'b': 0x30, 'c': 0x2E, 'd': 0x20, 'e': 0x12, 'f': 0x21, 'g': 0x22, 'h': 0x23,
+      'i': 0x17, 'j': 0x24, 'k': 0x25, 'l': 0x26, 'm': 0x32, 'n': 0x31, 'o': 0x18, 'p': 0x19,
+      'q': 0x10, 'r': 0x13, 's': 0x1F, 't': 0x14, 'u': 0x16, 'v': 0x2F, 'w': 0x11, 'x': 0x2D,
+      'y': 0x15, 'z': 0x2C,
+      '1': 0x02, '!': 0x02, '2': 0x03, '@': 0x03, '3': 0x04, '#': 0x04, '4': 0x05, '$': 0x05,
+      '5': 0x06, '%': 0x06, '6': 0x07, '^': 0x07, '7': 0x08, '&': 0x08, '8': 0x09, '*': 0x09,
+      '9': 0x0A, '(': 0x0A, '0': 0x0B, ')': 0x0B,
+      '-': 0x0C, '_': 0x0C, '=': 0x0D, '+': 0x0D,
+      '[': 0x1A, '{': 0x1A, ']': 0x1B, '}': 0x1B, '\\': 0x2B, '|': 0x2B,
+      ';': 0x27, ':': 0x27, '\'': 0x28, '"': 0x28,
+      ',': 0x33, '<': 0x33, '.': 0x34, '>': 0x34, '/': 0x35, '?': 0x35,
+      '`': 0x29, '~': 0x29, ' ': 0x39,
+      '\n': 0x1C, '\r': 0x1C
+    };
+
+    function scancodeForChar(ch) {
+      if (!ch) return 0;
+      const direct = SCANCODE_BY_CHAR[ch];
+      if (direct) return direct;
+      const lower = ch.toLowerCase();
+      return SCANCODE_BY_CHAR[lower] || 0;
+    }
+
+    function scancodeForEvent(e, ascii) {
+      const code = e && e.code ? e.code : "";
+      if (code && SCANCODE_BY_CODE[code]) return SCANCODE_BY_CODE[code];
+      if (ascii) return scancodeForChar(String.fromCharCode(ascii));
+      return 0;
+    }
+
+    function isArrowScancode(sc) {
+      return sc === 72 || sc === 75 || sc === 77 || sc === 80;
+    }
+
+    function arrowAsciiForScancode(sc) {
+      switch (sc) {
+        case 72: return 56; // '8'
+        case 80: return 50; // '2'
+        case 75: return 52; // '4'
+        case 77: return 54; // '6'
+        default: return 0;
+      }
+    }
+
+    function mapNumpadArrow(code) {
+      switch (code) {
+        case 'Numpad8': return 72;
+        case 'Numpad2': return 80;
+        case 'Numpad4': return 75;
+        case 'Numpad6': return 77;
+        default: return 0;
+      }
+    }
+
+    // Keyboard
+    UI.term.addEventListener('click', () => { UI.mobileInput.focus(); });
+    UI.mobileInput.addEventListener('input', e => {
+      if (e.data) for (let i = 0; i < e.data.length; i++) {
+        const ch = e.data[i];
+        const ascii = ch.charCodeAt(0);
+        const sc = scancodeForChar(ch);
+        sendKey(sc, ascii, true, false);
+        setTimeout(() => sendKey(sc, ascii, false, false), 50);
+      }
+      UI.mobileInput.value = "";
+    });
+    window.addEventListener('keydown', e => {
+      // Check if user is typing in a form field (input, select, textarea, button)
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const isFormField = tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button';
+      if (isFormField && document.activeElement !== UI.mobileInput) return;
+
+      // Always capture keys for DOS emulator (both text and graphics mode)
+      if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Tab'].includes(e.key)) {
+        e.preventDefault();
+      }
+      handleKey(e, true);
+    });
+    window.addEventListener('keyup', e => {
+      // Check if user is typing in a form field
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const isFormField = tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button';
+      if (isFormField && document.activeElement !== UI.mobileInput) return;
+
+      // Always capture keys for DOS emulator
+      handleKey(e, false);
+    });
+
+    function handleKey(e, pressed) {
+      if (e.repeat) return;
+      let sc = 0, ascii = 0, ext = 0;
+
+      if (STATE.legacyArrows || STATE.numlockArrows) {
+        const npSc = mapNumpadArrow(e.code);
+        if (npSc) {
+          e.preventDefault();
+          const npAscii = STATE.numlockArrows ? arrowAsciiForScancode(npSc) : 0;
+          sendKey(npSc, npAscii, pressed, 0);
+          return;
+        }
+      }
+
+      if (e.key.length === 1) ascii = e.key.charCodeAt(0);
+      const arrowExt = (STATE.legacyArrows || STATE.numlockArrows) ? 0 : 1;
+      const MAP = {
+        'Enter': [28, 13], 'Backspace': [14, 8], 'Tab': [15, 9], 'Escape': [1, 27],
+        'ArrowUp': [72, 0, arrowExt], 'ArrowDown': [80, 0, arrowExt], 'ArrowLeft': [75, 0, arrowExt], 'ArrowRight': [77, 0, arrowExt],
+        'Delete': [83, 0, 1], 'Home': [71, 0, 1], 'End': [79, 0, 1], 'PageUp': [73, 0, 1], 'PageDown': [81, 0, 1],
+        'F1': [59, 0], 'F2': [60, 0], 'F3': [61, 0], 'F4': [62, 0], 'F5': [63, 0], 'F6': [64, 0],
+        'F7': [65, 0], 'F8': [66, 0], 'F9': [67, 0], 'F10': [68, 0], 'F11': [87, 0], 'F12': [88, 0]
+      };
+      if (MAP[e.key]) {
+        [sc, ascii, ext] = [...MAP[e.key], 0];
+        if (STATE.numlockArrows && isArrowScancode(sc)) {
+          ascii = arrowAsciiForScancode(sc);
+        }
+        e.preventDefault();
+        sendKey(sc, ascii, pressed, ext);
+      } else if (e.code.startsWith('Control')) {
+        sendKey(29, 0, pressed, 0);
+      } else if (e.code.startsWith('Alt')) {
+        sendKey(56, 0, pressed, 0);
+      } else if (ascii) {
+        // Prevent double typing (input event) if keydown handles it
+        if (pressed) e.preventDefault();
+        sc = scancodeForEvent(e, ascii);
+        sendKey(sc, ascii, pressed, 0);
+      }
+    }
+
+    // Mouse
+    const mousePad = document.getElementById('mousePad');
+    let mState = { x: 0, y: 0, down: false, b: 0 };
+    mousePad.addEventListener('pointerdown', e => {
+      mousePad.setPointerCapture(e.pointerId);
+      mousePad.classList.add('is-pressed');
+      mState.x = e.clientX; mState.y = e.clientY; mState.down = true;
+      mState.b = (e.button === 2) ? 2 : 1;
+      sendMouse(0, 0, mState.b);
+      e.preventDefault();
+    });
+    mousePad.addEventListener('pointerup', e => {
+      mState.down = false; mState.b = 0;
+      mousePad.classList.remove('is-pressed');
+      sendMouse(0, 0, 0);
+    });
+    mousePad.addEventListener('contextmenu', e => e.preventDefault());
+    mousePad.addEventListener('pointerleave', () => {
+      mousePad.classList.remove('is-pressed');
+    });
+    mousePad.addEventListener('pointercancel', () => {
+      mousePad.classList.remove('is-pressed');
+    });
+    mousePad.addEventListener('pointermove', e => {
+      if (!mState.down) return;
+      const dx = e.clientX - mState.x; const dy = e.clientY - mState.y;
+      mState.x = e.clientX; mState.y = e.clientY;
+      if (dx || dy) sendMouse(dx, dy, mState.b);
+    });
+
+    document.getElementById('mobileControls').addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (b && b.dataset.sc) {
+        const sc = parseInt(b.dataset.sc, 10);
+        let asc = b.dataset.ascii ? parseInt(b.dataset.ascii, 10) : 0;
+        let ext = b.dataset.ext ? parseInt(b.dataset.ext, 10) : 0;
+        if ((STATE.legacyArrows || STATE.numlockArrows) && isArrowScancode(sc)) ext = 0;
+        if (STATE.numlockArrows && isArrowScancode(sc)) asc = arrowAsciiForScancode(sc);
+        sendKey(sc, asc, true, ext);
+        setTimeout(() => sendKey(sc, asc, false, ext), 100);
+      }
+    });
+
+    // --- Config, HD, Files ---
+    async function loadConfig() {
+      const res = await fetch('/api/settings'); const d = await res.json();
+      const f = document.forms.formSettings;
+      if (f) {
+        f.fps.value = d.display_fps;
+        f.partial_refresh.checked = d.partial_refresh;
+        f.pause_cpu_on_refresh.checked = d.pause_cpu_on_refresh;
+        f.clear_on_bottom.checked = !!d.clear_on_bottom;
+        f.wifi_enabled.checked = d.wifi_enabled;
+        f.bt_keyboard_enabled.checked = d.bt_keyboard_enabled;
+        f.gameport_enabled.checked = (d.gameport_enabled !== false);
+      }
+      updateBtKeyboardStatus(!!d.bt_keyboard_connected);
+      const fc = document.forms.formCDrive;
+      if (fc) fc.querySelector('#chkDos33Compat').checked = d.c_drive_dos33_compat;
+      loadDrives(d.c_drive_image_path, d.boot_image_path, d.a_drive_image_path, d.b_drive_image_path);
+    }
+
+    const FLOPPY_MAX_BYTES = 1474560;
+
+    function updateFileExplorerImageLabel() {
+      const label = document.getElementById('fileExplorerImage');
+      if (!label) return;
+      const explorerPath = getExplorerImagePath();
+      const storagePath = getSelectedCDrivePath();
+      if (!explorerPath) {
+        label.textContent = '(no image selected)';
+        return;
+      }
+      let text = `DOS C: ${explorerPath}`;
+      if (storagePath && storagePath !== explorerPath) {
+        text += ` (Storage C: ${storagePath} = DOS D:)`;
+      }
+      label.textContent = text;
+    }
+
+    async function loadDrives(cC, cB, aPath, bPath) {
+      const dC = await (await fetch('/api/hdd-images')).json();
+      const selC = document.getElementById('cDriveSelect');
+      fmState.bootImagePath = String(cB || '');
+      selC.innerHTML = "";
+      const opts = dC.images.map(i => {
+        const size = (typeof i.size === 'number') ? ` (${(i.size / 1024 / 1024).toFixed(0)}MB)` : '';
+        return `<option value="${i.path}" ${i.path === cC ? 'selected' : ''}>${i.path}${size}</option>`;
+      }).join('');
+      selC.innerHTML = opts;
+      fmState.cDriveImagePath = String(selC.value || cC || '');
+
+      const selB = document.getElementById('bootSelect');
+      selB.innerHTML = `<option value="C:">Hard Drive (C:)</option>`;
+      // Load floppies/images for boot
+      const dB = await (await fetch('/api/boot-images')).json();
+      fmState.bootImages = Array.isArray(dB.images) ? dB.images : [];
+      selB.innerHTML += dB.images.map(i => {
+        const size = (typeof i.size === 'number') ? ` (${(i.size / 1024 / 1024).toFixed(0)}MB)` : '';
+        return `<option value="${i.path}" ${i.path === cB ? 'selected' : ''}>${i.path}${size}</option>`;
+      }).join('');
+      if (cB === cC || cB === "C:" || !cB) selB.value = "C:";
+
+      const floppyImages = dB.images.filter(i => typeof i.size === 'number' && i.size > 0 && i.size <= FLOPPY_MAX_BYTES);
+      const aSel = document.getElementById('aDriveSelect');
+      const bSel = document.getElementById('bDriveSelect');
+      const floppyOpts = floppyImages.map(i => {
+        const size = (typeof i.size === 'number') ? ` (${(i.size / 1024).toFixed(0)}KB)` : '';
+        return `<option value="${i.path}" ${i.path === aPath ? 'selected' : ''}>${i.path}${size}</option>`;
+      }).join('');
+      if (aSel) {
+        aSel.innerHTML = floppyOpts || '<option value="">(no floppy images found)</option>';
+        if (aPath) aSel.value = aPath;
+      }
+
+      const floppyOptsB = floppyImages.map(i => {
+        const size = (typeof i.size === 'number') ? ` (${(i.size / 1024).toFixed(0)}KB)` : '';
+        return `<option value="${i.path}" ${i.path === bPath ? 'selected' : ''}>${i.path}${size}</option>`;
+      }).join('');
+      if (bSel) {
+        bSel.innerHTML = floppyOptsB || '<option value="">(no floppy images found)</option>';
+        if (bPath) bSel.value = bPath;
+      }
+
+      updateFileExplorerImageLabel();
+      fmRender(hdPath).catch(() => { });
+    }
+
+    const floppyFormA = document.getElementById('formFloppyA');
+    const floppyFormB = document.getElementById('formFloppyB');
+    const aDriveSelect = document.getElementById('aDriveSelect');
+    const bDriveSelect = document.getElementById('bDriveSelect');
+    const statusSelectA = document.getElementById('statusSelectA');
+    const statusSelectB = document.getElementById('statusSelectB');
+
+    const diskSwapAForm = document.getElementById('uploadFormA');
+    const diskSwapAFile = document.getElementById('fileA');
+    const diskSwapAStatus = document.getElementById('statusA');
+    const diskSwapAProgressWrap = document.getElementById('progressWrapA');
+    const diskSwapAProgressBar = document.getElementById('progressBarA');
+
+    const diskSwapForm = document.getElementById('uploadForm');
+    const diskSwapFile = document.getElementById('file');
+    const diskSwapStatus = document.getElementById('status');
+    const diskSwapProgressWrap = document.getElementById('progressWrap');
+    const diskSwapProgressBar = document.getElementById('progressBar');
+    const sdUploadInput = document.getElementById('sdUploadInput');
+    const sdUploadBtn = document.getElementById('sdUploadBtn');
+    const sdUploadStatus = document.getElementById('sdUploadStatus');
+    const sdUploadProgressWrap = document.getElementById('sdUploadProgressWrap');
+    const sdUploadProgressBar = document.getElementById('sdUploadProgressBar');
+
+    document.forms.formSettings.addEventListener('submit', async e => {
+      e.preventDefault();
+      const params = new URLSearchParams(new FormData(e.target));
+      // Checkboxes need explicit values
+      ['partial_refresh', 'pause_cpu_on_refresh', 'clear_on_bottom', 'wifi_enabled', 'bt_keyboard_enabled', 'gameport_enabled'].forEach(k => params.set(k, e.target[k].checked ? '1' : '0'));
+      await fetch('/api/settings', { method: 'POST', body: params });
+      document.getElementById('configStatus').textContent = "Saved.";
+    });
+    document.forms.formCDrive.addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!confirm("Reboot required. Proceed?")) return;
+      const p = new URLSearchParams();
+      p.set('c_drive_image_path', document.getElementById('cDriveSelect').value);
+      p.set('c_drive_dos33_compat', document.getElementById('chkDos33Compat').checked ? '1' : '0');
+      await fetch('/api/settings', { method: 'POST', body: p });
+      await fetch('/api/reboot', { method: 'POST' });
+      location.reload();
+    });
+    document.forms.formBoot.addEventListener('submit', async e => {
+      e.preventDefault();
+      let val = document.getElementById('bootSelect').value;
+      if (val === "C:") val = document.getElementById('cDriveSelect').value;
+      await fetch('/api/settings', { method: 'POST', body: new URLSearchParams({ boot_image_path: val }) });
+      alert("Saved. Reboot to apply.");
+    });
+
+    if (floppyFormA) {
+      floppyFormA.addEventListener('submit', async e => {
+        e.preventDefault();
+        const val = aDriveSelect?.value;
+        if (!val) return;
+        if (statusSelectA) statusSelectA.textContent = "Mounting...";
+        const res = await fetch('/api/settings', { method: 'POST', body: new URLSearchParams({ a_drive_image_path: val }) });
+        if (statusSelectA) statusSelectA.textContent = res.ok ? "Mounted." : ("Failed: " + (await res.text()));
+      });
+    }
+
+    if (floppyFormB) {
+      floppyFormB.addEventListener('submit', async e => {
+        e.preventDefault();
+        const val = bDriveSelect?.value;
+        if (!val) return;
+        if (statusSelectB) statusSelectB.textContent = "Mounting...";
+        const res = await fetch('/api/settings', { method: 'POST', body: new URLSearchParams({ b_drive_image_path: val }) });
+        if (statusSelectB) statusSelectB.textContent = res.ok ? "Mounted." : ("Failed: " + (await res.text()));
+      });
+    }
+
+    if (diskSwapAForm) {
+      diskSwapAForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const f = diskSwapAFile?.files?.[0];
+        if (!f) return;
+
+        if (diskSwapAProgressWrap) diskSwapAProgressWrap.style.display = 'block';
+        if (diskSwapAProgressBar) {
+          diskSwapAProgressBar.style.width = '0%';
+          diskSwapAProgressBar.className = 'progress-bar';
+        }
+        if (diskSwapAStatus) diskSwapAStatus.textContent = "Uploading...";
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/disk1');
+        xhr.responseType = 'text';
+
+        xhr.upload.onprogress = (evt) => {
+          if (!evt.lengthComputable || !diskSwapAProgressBar) return;
+          const pct = Math.round((evt.loaded / evt.total) * 100);
+          diskSwapAProgressBar.style.width = pct + '%';
+        };
+
+        xhr.onload = () => {
+          if (!diskSwapAProgressBar || !diskSwapAStatus) return;
+          if (xhr.status >= 200 && xhr.status < 300) {
+            diskSwapAProgressBar.classList.add('bg-success');
+            diskSwapAStatus.textContent = "Swap complete.";
+          } else {
+            diskSwapAProgressBar.classList.add('bg-danger');
+            diskSwapAStatus.textContent = "Upload failed: " + xhr.status + " " + (xhr.responseText || "");
+          }
+        };
+
+        xhr.onerror = () => {
+          if (!diskSwapAProgressBar || !diskSwapAStatus) return;
+          diskSwapAProgressBar.classList.add('bg-danger');
+          diskSwapAStatus.textContent = "Network error.";
+        };
+
+        const fd = new FormData();
+        fd.append('disk1', f, 'disk1.img');
+        xhr.send(fd);
+      });
+    }
+
+    if (diskSwapForm) {
+      diskSwapForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const f = diskSwapFile?.files?.[0];
+        if (!f) return;
+
+        if (diskSwapProgressWrap) diskSwapProgressWrap.style.display = 'block';
+        if (diskSwapProgressBar) {
+          diskSwapProgressBar.style.width = '0%';
+          diskSwapProgressBar.className = 'progress-bar';
+        }
+        if (diskSwapStatus) diskSwapStatus.textContent = "Uploading...";
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/disk2');
+        xhr.responseType = 'text';
+
+        xhr.upload.onprogress = (evt) => {
+          if (!evt.lengthComputable || !diskSwapProgressBar) return;
+          const pct = Math.round((evt.loaded / evt.total) * 100);
+          diskSwapProgressBar.style.width = pct + '%';
+        };
+
+        xhr.onload = () => {
+          if (!diskSwapProgressBar || !diskSwapStatus) return;
+          if (xhr.status >= 200 && xhr.status < 300) {
+            diskSwapProgressBar.classList.add('bg-success');
+            diskSwapStatus.textContent = "Swap complete.";
+          } else {
+            diskSwapProgressBar.classList.add('bg-danger');
+            diskSwapStatus.textContent = "Upload failed: " + xhr.status + " " + (xhr.responseText || "");
+          }
+        };
+
+        xhr.onerror = () => {
+          if (!diskSwapProgressBar || !diskSwapStatus) return;
+          diskSwapProgressBar.classList.add('bg-danger');
+          diskSwapStatus.textContent = "Network error.";
+        };
+
+        const fd = new FormData();
+        fd.append('disk2', f, 'disk2.img');
+        xhr.send(fd);
+      });
+    }
+
+    async function uploadSdOneFile(file) {
+      return await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/sd/upload?name=' + encodeURIComponent(file.name));
+        xhr.responseType = 'json';
+
+        xhr.upload.onprogress = (evt) => {
+          if (!evt.lengthComputable || !sdUploadProgressBar) return;
+          const pct = Math.round((evt.loaded / evt.total) * 100);
+          sdUploadProgressBar.style.width = pct + '%';
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response);
+          else reject(new Error('HTTP ' + xhr.status + ' ' + (xhr.responseText || '')));
+        };
+
+        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.send(file);
+      });
+    }
+
+    if (sdUploadBtn) {
+      sdUploadBtn.addEventListener('click', async () => {
+        const files = sdUploadInput?.files ? Array.from(sdUploadInput.files) : [];
+        if (files.length === 0) return;
+
+        if (sdUploadProgressWrap) sdUploadProgressWrap.style.display = 'block';
+        if (sdUploadProgressBar) {
+          sdUploadProgressBar.style.width = '0%';
+          sdUploadProgressBar.className = 'progress-bar';
+        }
+        if (sdUploadStatus) sdUploadStatus.textContent = "Uploading...";
+
+        try {
+          for (let i = 0; i < files.length; i++) {
+            const f = files[i];
+            if (sdUploadStatus) sdUploadStatus.textContent = `Uploading ${f.name} (${i + 1}/${files.length})...`;
+            if (sdUploadProgressBar) sdUploadProgressBar.style.width = '0%';
+            await uploadSdOneFile(f);
+          }
+          if (sdUploadProgressBar) sdUploadProgressBar.classList.add('bg-success');
+          if (sdUploadStatus) sdUploadStatus.textContent = "Upload complete.";
+          await loadDrives(
+            document.getElementById('cDriveSelect').value,
+            document.getElementById('bootSelect').value,
+            document.getElementById('aDriveSelect')?.value,
+            document.getElementById('bDriveSelect')?.value
+          );
+        } catch (err) {
+          if (sdUploadProgressBar) sdUploadProgressBar.classList.add('bg-danger');
+          if (sdUploadStatus) sdUploadStatus.textContent = "Upload failed: " + (err && err.message ? err.message : String(err));
+        }
+      });
+    }
+
+    const newHdPresetButtons = Array.from(document.querySelectorAll('#newHdPresets .hd-preset'));
+    const newHdSizeInput = document.getElementById('newHdSize');
+    const newHdDos33Input = document.getElementById('newHdDos33');
+
+    function sanitizeHdName(raw) {
+      const trimmed = String(raw || '').trim();
+      if (!trimmed) return '';
+      let name = trimmed;
+      if (name.toLowerCase().endsWith('.img')) {
+        name = name.slice(0, -4);
+      }
+      name = name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      if (name === '.' || name === '..') return '';
+      return name;
+    }
+
+    function selectNewHdPreset(btn) {
+      if (!btn || !newHdSizeInput || !newHdDos33Input) return;
+      newHdPresetButtons.forEach(b => {
+        b.classList.remove('btn-primary');
+        b.classList.add('btn-outline-secondary');
+      });
+      btn.classList.add('btn-primary');
+      btn.classList.remove('btn-outline-secondary');
+      newHdSizeInput.value = btn.dataset.size || '512';
+      newHdDos33Input.value = btn.dataset.dos33 || '0';
+    }
+
+    if (newHdPresetButtons.length) {
+      newHdPresetButtons.forEach(btn => {
+        btn.addEventListener('click', () => selectNewHdPreset(btn));
+      });
+      const def = newHdPresetButtons.find(btn => btn.dataset.default === '1');
+      selectNewHdPreset(def || newHdPresetButtons[0]);
+    }
+
+    // HD Generation
+    document.forms.formNewHd.addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const safeName = sanitizeHdName(fd.get('name'));
+      if (!safeName) {
+        document.getElementById('newHdStatus').textContent = "Enter a valid name.";
+        return;
+      }
+      const p = new URLSearchParams();
+      p.set('path', `/sdcard/c_drive/${safeName}.img`);
+      p.set('size_mb', fd.get('size'));
+      p.set('dos33', fd.get('dos33') === '1' ? '1' : '0');
+      document.getElementById('newHdStatus').textContent = "Generating... Wait.";
+      try {
+        const r = await fetch('/api/hdd-generate', { method: 'POST', body: p });
+        if (!r.ok) throw new Error(await r.text());
+        bootstrap.Modal.getInstance(document.getElementById('newHdModal')).hide();
+        loadConfig();
+      } catch (err) {
+        document.getElementById('newHdStatus').textContent = "Error: " + err.message;
+      }
+    });
+    document.getElementById('btnPowerCycle').onclick = async () => {
+      if (confirm("Reboot device?")) await fetch('/api/reboot', { method: 'POST' });
+    }
+    document.getElementById('btnRebootDosConfig').onclick = async () => {
+      await fetch('/api/reboot', { method: 'POST' });
+    }
+    document.getElementById('btnFocusTerm').onclick = () => {
+      UI.term.focus();
+    }
+    document.getElementById('btnClearTerm').onclick = () => {
+      STATE.scrollback = [];
+      renderTerminal();
+    }
+
+    // File Manager
+    let hdPath = '/';
+    const fmState = { bootImagePath: '', bootImages: [], cDriveImagePath: '' };
+    const hdStatus = document.getElementById('fmStatus');
+    const fileTreeEl = document.getElementById('fileTree');
+    const fileListPane = document.getElementById('fileListPane');
+    const cDriveSelectEl = document.getElementById('cDriveSelect');
+    const fileListBody = document.getElementById('fileListBody');
+    const fmContextMenu = document.getElementById('fmContextMenu');
+    const fmCtxRename = document.getElementById('fmCtxRename');
+    const fmCtxDelete = document.getElementById('fmCtxDelete');
+    let fmContextTarget = null;
+
+    function normalizeHdPath(path) {
+      let p = String(path || '/').trim();
+      if (!p.startsWith('/')) p = '/' + p;
+      p = p.replace(/\/+/g, '/');
+      if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+      return p;
+    }
+
+    function joinHdPath(base, rel) {
+      const b = normalizeHdPath(base);
+      let r = String(rel || '').replace(/\\/g, '/');
+      r = r.replace(/^\/+/, '').replace(/\/+/g, '/');
+      if (!r) return b;
+      return b === '/' ? '/' + r : b + '/' + r;
+    }
+
+    function normalizeRelPath(path) {
+      let p = String(path || '').replace(/\\/g, '/');
+      p = p.replace(/^\/+/, '').replace(/\/+/g, '/');
+      if (p.endsWith('/')) p = p.slice(0, -1);
+      return p;
+    }
+
+    function splitRelPath(path) {
+      const clean = normalizeRelPath(path);
+      if (!clean) return { dir: '', name: '' };
+      const idx = clean.lastIndexOf('/');
+      if (idx === -1) return { dir: '', name: clean };
+      return { dir: clean.slice(0, idx), name: clean.slice(idx + 1) };
+    }
+
+    function getSelectedCDrivePath() {
+      const val = cDriveSelectEl?.value || fmState.cDriveImagePath || '';
+      return String(val || '').trim();
+    }
+
+    function isStandardFloppySize(size) {
+      const n = typeof size === 'number' ? size : Number(size);
+      return Number.isFinite(n) && n > 0 && n <= FLOPPY_MAX_BYTES;
+    }
+
+    function getBootImageInfo() {
+      const bootPath = String(fmState.bootImagePath || '').trim();
+      if (!bootPath || bootPath === 'C:') return null;
+      const list = Array.isArray(fmState.bootImages) ? fmState.bootImages : [];
+      const match = list.find(i => i.path === bootPath);
+      return match || { path: bootPath, size: null };
+    }
+
+    function getExplorerImagePath() {
+      const bootInfo = getBootImageInfo();
+      if (bootInfo) {
+        if (!isStandardFloppySize(bootInfo.size)) return bootInfo.path;
+      }
+      return getSelectedCDrivePath();
+    }
+
+    function getSelectedHdImagePath() {
+      return getExplorerImagePath();
+    }
+
+    function getHdImageQuery() {
+      const img = getSelectedHdImagePath();
+      return img ? `&image=${encodeURIComponent(img)}` : '';
+    }
+
+    function withHdImageBody(params) {
+      const img = getSelectedHdImagePath();
+      if (img) params.set('image', img);
+      return params;
+    }
+
+    async function listHdDir(path) {
+      const res = await fetch(`/api/hd/list?path=${encodeURIComponent(path)}${getHdImageQuery()}`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      if (data && data.error) throw new Error(data.error);
+      return Array.isArray(data.entries) ? data.entries : [];
+    }
+
+    async function fmRenderTree(path) {
+      if (!fileTreeEl) return;
+      const current = normalizeHdPath(path);
+      fileTreeEl.dataset.dropPath = '/';
+      const segments = current.split('/').filter(Boolean);
+      const lines = [{ name: '/', path: '/', depth: 0 }];
+
+      async function addLevel(basePath, depth, remaining) {
+        const entries = await listHdDir(basePath);
+        const dirs = entries.filter(e => e.is_dir).sort((a, b) => a.name.localeCompare(b.name));
+        for (const dir of dirs) {
+          const full = joinHdPath(basePath, dir.name);
+          lines.push({ name: dir.name, path: full, depth });
+          if (remaining[0] === dir.name) {
+            await addLevel(full, depth + 1, remaining.slice(1));
+          }
+        }
+      }
+
+      try {
+        await addLevel('/', 1, segments);
+        fileTreeEl.innerHTML = lines.map(line => {
+          const isActive = line.path === current;
+          const label = line.name === '/' ? '/' : line.name;
+          const pad = 8 + line.depth * 12;
+          return `<div class="tree-item${isActive ? ' active' : ''}" data-path="${line.path}" data-drop-path="${line.path}" style="padding-left:${pad}px">${label}</div>`;
+        }).join('');
+      } catch (err) {
+        fileTreeEl.innerHTML = '<div class="text-muted small p-2">Unable to load tree.</div>';
+      }
+    }
+
+    async function uploadHdFile(targetPath, file, name) {
+      const res = await fetch(`/api/hd/upload?path=${encodeURIComponent(targetPath)}&name=${encodeURIComponent(name)}${getHdImageQuery()}`, { method: 'POST', body: file });
+      if (!res.ok) throw new Error(await res.text());
+    }
+
+    async function uploadHdFiles(targetPath, files) {
+      const list = Array.from(files || []);
+      if (!list.length) return;
+      for (let i = 0; i < list.length; i++) {
+        const f = list[i];
+        if (hdStatus) hdStatus.textContent = `Uploading ${f.name} (${i + 1}/${list.length})...`;
+        await uploadHdFile(targetPath, f, f.name);
+      }
+      if (hdStatus) hdStatus.textContent = "Done.";
+    }
+
+    async function hdDirExists(parent, name) {
+      try {
+        const entries = await listHdDir(parent);
+        return entries.some(e => e.is_dir && e.name === name);
+      } catch (err) {
+        return false;
+      }
+    }
+
+    async function ensureHdDir(path, created) {
+      const normalized = normalizeHdPath(path);
+      if (normalized === '/') return;
+      if (created.has(normalized)) return;
+      const parent = normalized.slice(0, normalized.lastIndexOf('/')) || '/';
+      const name = normalized.slice(normalized.lastIndexOf('/') + 1);
+      if (!name) return;
+      await ensureHdDir(parent, created);
+      const res = await fetch('/api/hd/mkdir', { method: 'POST', body: withHdImageBody(new URLSearchParams({ path: parent, name })) });
+      if (!res.ok) {
+        const exists = await hdDirExists(parent, name);
+        if (!exists) throw new Error(await res.text());
+      }
+      created.add(normalized);
+    }
+
+    // Traverse dropped folders using webkit file entries when available.
+    function readAllEntries(dirEntry) {
+      return new Promise(resolve => {
+        const reader = dirEntry.createReader();
+        const entries = [];
+        const readBatch = () => {
+          reader.readEntries(batch => {
+            if (!batch.length) return resolve(entries);
+            entries.push(...batch);
+            readBatch();
+          });
+        };
+        readBatch();
+      });
+    }
+
+    async function walkEntry(entry, prefix, files, dirs) {
+      if (entry.isFile) {
+        const file = await new Promise(resolve => entry.file(resolve, () => resolve(null)));
+        if (file) files.push({ file, relPath: prefix + entry.name });
+        return;
+      }
+      if (entry.isDirectory) {
+        const dirPath = prefix + entry.name;
+        dirs.add(dirPath);
+        const children = await readAllEntries(entry);
+        for (const child of children) {
+          await walkEntry(child, dirPath + '/', files, dirs);
+        }
+      }
+    }
+
+    async function collectDroppedItems(dataTransfer) {
+      const files = [];
+      const dirs = new Set();
+      if (!dataTransfer) return { files, dirs };
+
+      const items = dataTransfer.items ? Array.from(dataTransfer.items) : [];
+      const entries = [];
+      for (const item of items) {
+        if (item.kind !== 'file') continue;
+        const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+        if (entry) entries.push(entry);
+        else {
+          const file = item.getAsFile ? item.getAsFile() : null;
+          if (file) files.push({ file, relPath: file.name });
+        }
+      }
+
+      if (entries.length) {
+        for (const entry of entries) {
+          await walkEntry(entry, '', files, dirs);
+        }
+      } else if (dataTransfer.files && dataTransfer.files.length) {
+        for (const file of dataTransfer.files) {
+          files.push({ file, relPath: file.name });
+        }
+      }
+
+      return { files, dirs };
+    }
+
+    async function uploadDroppedItems(targetPath, payload) {
+      const basePath = normalizeHdPath(targetPath);
+      const files = payload.files || [];
+      const dirs = payload.dirs || new Set();
+      if (!files.length && dirs.size === 0) return;
+
+      const allDirs = new Set();
+      for (const dir of dirs) {
+        const clean = normalizeRelPath(dir);
+        if (clean) allDirs.add(clean);
+      }
+      for (const item of files) {
+        const relPath = normalizeRelPath(item.relPath);
+        const parts = splitRelPath(relPath);
+        if (parts.dir) allDirs.add(parts.dir);
+        item.relPath = relPath;
+        item.dir = parts.dir;
+        item.name = parts.name;
+      }
+
+      const orderedDirs = Array.from(allDirs).sort((a, b) => a.split('/').length - b.split('/').length);
+      const created = new Set();
+      for (const dir of orderedDirs) {
+        await ensureHdDir(joinHdPath(basePath, dir), created);
+      }
+
+      for (let i = 0; i < files.length; i++) {
+        const item = files[i];
+        if (!item.name) continue;
+        const uploadDir = item.dir ? joinHdPath(basePath, item.dir) : basePath;
+        if (hdStatus) hdStatus.textContent = `Uploading ${item.name} (${i + 1}/${files.length})...`;
+        await uploadHdFile(uploadDir, item.file, item.name);
+      }
+
+      if (hdStatus) hdStatus.textContent = "Done.";
+      fmRender(hdPath);
+    }
+
+    function isFileDrag(dataTransfer) {
+      if (!dataTransfer) return false;
+      if (dataTransfer.types && Array.from(dataTransfer.types).includes('Files')) return true;
+      return dataTransfer.files && dataTransfer.files.length > 0;
+    }
+
+    let dropTargetEl = null;
+    function setDropTarget(el) {
+      if (dropTargetEl === el) return;
+      if (dropTargetEl) dropTargetEl.classList.remove('drop-target-active');
+      dropTargetEl = el || null;
+      if (dropTargetEl) dropTargetEl.classList.add('drop-target-active');
+    }
+
+    function clearDropTarget() {
+      setDropTarget(null);
+    }
+
+    function setupDropZone(zone, getDefaultPath) {
+      if (!zone) return;
+      zone.addEventListener('dragover', e => {
+        if (!isFileDrag(e.dataTransfer)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        zone.classList.add('drop-zone-active');
+        const target = e.target.closest('[data-drop-path]');
+        setDropTarget(target && target !== zone ? target : null);
+      });
+      zone.addEventListener('dragleave', e => {
+        if (!isFileDrag(e.dataTransfer)) return;
+        if (e.relatedTarget && zone.contains(e.relatedTarget)) return;
+        zone.classList.remove('drop-zone-active');
+        clearDropTarget();
+      });
+      zone.addEventListener('drop', async e => {
+        if (!isFileDrag(e.dataTransfer)) return;
+        e.preventDefault();
+        zone.classList.remove('drop-zone-active');
+        const target = e.target.closest('[data-drop-path]');
+        const dropPath = normalizeHdPath(target?.dataset.dropPath || zone.dataset.dropPath || getDefaultPath());
+        clearDropTarget();
+        try {
+          const payload = await collectDroppedItems(e.dataTransfer);
+          await uploadDroppedItems(dropPath, payload);
+        } catch (err) {
+          if (hdStatus) hdStatus.textContent = "Upload failed: " + (err && err.message ? err.message : String(err));
+        }
+      });
+    }
+
+    async function fmRender(path) {
+      hdPath = normalizeHdPath(path);
+      document.getElementById('currentPath').textContent = hdPath;
+      if (fileListPane) fileListPane.dataset.dropPath = hdPath;
+      const tbody = document.getElementById('fileListBody');
+      let entries = [];
+      try {
+        entries = await listHdDir(hdPath);
+        if (hdStatus) hdStatus.textContent = "";
+      } catch (err) {
+        if (hdStatus) hdStatus.textContent = "Load failed: " + (err && err.message ? err.message : String(err));
+      }
+      tbody.innerHTML = entries.sort((a, b) => b.is_dir - a.is_dir).map(e => {
+        const entryPath = joinHdPath(hdPath, e.name);
+        const dropAttr = e.is_dir ? ` data-drop-path="${entryPath}"` : '';
+        const rowAttrs = ` data-name="${e.name}" data-path="${entryPath}" data-is-dir="${e.is_dir ? '1' : '0'}"${dropAttr}`;
+        return `
+        <tr${rowAttrs}>
+            <td>
+                ${e.is_dir ? `<button class="btn btn-sm btn-link p-0 fw-bold" onclick="fmRender('${hdPath === '/' ? '' : hdPath}/${e.name}')">[DIR] ${e.name}</button>` : `${e.name}`}
+            </td>
+            <td>${e.is_dir ? '' : (e.size / 1024).toFixed(1) + ' KB'}</td>
+            <td>${e.date || ''}</td>
+            <td class="text-end">
+                <button class="btn btn-sm btn-outline-danger py-0" onclick="fmDel('${hdPath}','${e.name}',${e.is_dir ? 'true' : 'false'})">x</button>
+            </td>
+        </tr>
+    `;
+      }).join('');
+      fmRenderTree(hdPath).catch(() => { });
+    }
+    window.fmRender = fmRender;
+    window.fmDel = async (path, name, isDir) => {
+      if (!confirm(`Delete ${name}?`)) return;
+      const full = path === '/' ? '/' + name : path + '/' + name;
+      try {
+        if (hdStatus) hdStatus.textContent = "Deleting...";
+        if (isDir) {
+          await deleteHdPathRecursive(full);
+        } else {
+          await deleteHdPath(full);
+        }
+        fmRender(path);
+      } catch (err) {
+        if (hdStatus) hdStatus.textContent = "Delete failed: " + (err && err.message ? err.message : String(err));
+      }
+    };
+    document.getElementById('btnUpDir').onclick = () => {
+      const p = hdPath.split('/'); p.pop();
+      fmRender(p.length === 1 ? '/' : p.join('/'));
+    };
+    document.getElementById('btnRefreshFiles').onclick = () => fmRender(hdPath);
+    document.getElementById('btnUploadFilesTrigger').onclick = () => document.getElementById('fileUploadInput').click();
+    document.getElementById('fileUploadInput').onchange = async e => {
+      const files = e.target.files ? Array.from(e.target.files) : [];
+      if (files.length === 0) return;
+      try {
+        await uploadHdFiles(hdPath, files);
+        fmRender(hdPath);
+      } catch (err) {
+        if (hdStatus) hdStatus.textContent = "Upload failed: " + (err && err.message ? err.message : String(err));
+      }
+      e.target.value = '';
+    };
+    document.getElementById('btnMkdir').onclick = async () => {
+      const n = prompt("Folder Name:");
+      if (n) {
+        await fetch('/api/hd/mkdir', { method: 'POST', body: withHdImageBody(new URLSearchParams({ path: hdPath, name: n })) });
+        fmRender(hdPath);
+      }
+    }
+    if (cDriveSelectEl) {
+      cDriveSelectEl.addEventListener('change', () => fmRender('/'));
+      cDriveSelectEl.addEventListener('change', updateFileExplorerImageLabel);
+    }
+    if (fileTreeEl) {
+      fileTreeEl.addEventListener('click', e => {
+        const item = e.target.closest('.tree-item');
+        if (!item) return;
+        const path = item.dataset.path || '/';
+        fmRender(path);
+      });
+    }
+    setupDropZone(fileListPane, () => hdPath);
+    setupDropZone(fileTreeEl, () => '/');
+
+    function hideContextMenu() {
+      if (!fmContextMenu) return;
+      fmContextMenu.style.display = 'none';
+      fmContextMenu.setAttribute('aria-hidden', 'true');
+      fmContextTarget = null;
+    }
+
+    function showContextMenu(x, y, target) {
+      if (!fmContextMenu) return;
+      fmContextTarget = target;
+      fmContextMenu.style.display = 'block';
+      fmContextMenu.setAttribute('aria-hidden', 'false');
+      const menuWidth = fmContextMenu.offsetWidth || 160;
+      const menuHeight = fmContextMenu.offsetHeight || 80;
+      const maxX = window.innerWidth - menuWidth - 8;
+      const maxY = window.innerHeight - menuHeight - 8;
+      fmContextMenu.style.left = Math.max(8, Math.min(x, maxX)) + 'px';
+      fmContextMenu.style.top = Math.max(8, Math.min(y, maxY)) + 'px';
+      const isRoot = !target || target.path === '/';
+      if (fmCtxRename) fmCtxRename.disabled = isRoot;
+      if (fmCtxDelete) fmCtxDelete.disabled = isRoot;
+    }
+
+    async function handleRename(target) {
+      if (!target || target.path === '/') return;
+      const newName = prompt("Rename to:", target.name);
+      if (!newName) return;
+      if (newName.includes('/') || newName.includes('\\')) {
+        if (hdStatus) hdStatus.textContent = "Rename failed: invalid name.";
+        return;
+      }
+      try {
+        const params = withHdImageBody(new URLSearchParams({ path: target.path, name: newName }));
+        const res = await fetch('/api/hd/rename', { method: 'POST', body: params });
+        if (!res.ok) throw new Error(await res.text());
+        fmRender(hdPath);
+      } catch (err) {
+        if (hdStatus) hdStatus.textContent = "Rename failed: " + (err && err.message ? err.message : String(err));
+      }
+    }
+
+    async function deleteHdPath(path) {
+      const params = withHdImageBody(new URLSearchParams({ path }));
+      const res = await fetch('/api/hd/delete', { method: 'POST', body: params });
+      if (!res.ok) throw new Error(await res.text());
+    }
+
+    async function deleteHdPathRecursive(path) {
+      const entries = await listHdDir(path);
+      for (const entry of entries) {
+        const childPath = joinHdPath(path, entry.name);
+        if (entry.is_dir) {
+          await deleteHdPathRecursive(childPath);
+        } else {
+          await deleteHdPath(childPath);
+        }
+      }
+      await deleteHdPath(path);
+    }
+
+    async function handleDelete(target) {
+      if (!target || target.path === '/') return;
+      if (!confirm(`Delete ${target.name}?`)) return;
+      try {
+        if (hdStatus) hdStatus.textContent = "Deleting...";
+        if (target.isDir) {
+          await deleteHdPathRecursive(target.path);
+        } else {
+          await deleteHdPath(target.path);
+        }
+        fmRender(hdPath);
+      } catch (err) {
+        if (hdStatus) hdStatus.textContent = "Delete failed: " + (err && err.message ? err.message : String(err));
+      }
+    }
+
+    function contextTargetFromRow(row) {
+      if (!row) return null;
+      const path = row.dataset.path || '';
+      const name = row.dataset.name || '';
+      const isDir = row.dataset.isDir === '1';
+      return { path, name, isDir };
+    }
+
+    function contextTargetFromTree(item) {
+      if (!item) return null;
+      const path = item.dataset.path || '/';
+      const parts = path.split('/').filter(Boolean);
+      const name = parts.length ? parts[parts.length - 1] : '/';
+      return { path, name, isDir: true };
+    }
+
+    if (fileListBody) {
+      fileListBody.addEventListener('contextmenu', e => {
+        const row = e.target.closest('tr[data-path]');
+        if (!row) return;
+        e.preventDefault();
+        showContextMenu(e.clientX, e.clientY, contextTargetFromRow(row));
+      });
+    }
+
+    if (fileTreeEl) {
+      fileTreeEl.addEventListener('contextmenu', e => {
+        const item = e.target.closest('.tree-item');
+        if (!item) return;
+        e.preventDefault();
+        showContextMenu(e.clientX, e.clientY, contextTargetFromTree(item));
+      });
+    }
+
+    if (fmCtxRename) {
+      fmCtxRename.addEventListener('click', () => {
+        const target = fmContextTarget;
+        hideContextMenu();
+        handleRename(target);
+      });
+    }
+
+    if (fmCtxDelete) {
+      fmCtxDelete.addEventListener('click', () => {
+        const target = fmContextTarget;
+        hideContextMenu();
+        handleDelete(target);
+      });
+    }
+
+    document.addEventListener('click', e => {
+      if (!fmContextMenu || fmContextMenu.contains(e.target)) return;
+      hideContextMenu();
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') hideContextMenu();
+    });
+
+    // Logs
+    async function loadLogs() {
+      try {
+        const d = await (await fetch('/api/logs')).json();
+        const ctr = document.getElementById('logTableBody');
+        ctr.innerHTML = Object.entries(d).map(([k, v]) => `
+            <div class="col">
+                <label class="small text-muted d-block">${k}</label>
+                <select name="${k}" class="form-select form-select-sm">
+                    ${[[-1, 'Default'], [0, 'None'], [1, 'Error'], [2, 'Warn'], [3, 'Info'], [4, 'Debug'], [5, 'Verbose']].map(o => `<option value="${o[0]}" ${o[0] === v ? 'selected' : ''}>${o[1]}</option>`).join('')}
+                </select>
+            </div>
+        `).join('');
+      } catch (e) { }
+    }
+    document.getElementById('logForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const p = new URLSearchParams();
+      new FormData(e.target).forEach((v, k) => p.set(k, v));
+      await fetch('/api/logs', { method: 'POST', body: p });
+      document.getElementById('logStatus').textContent = "Logs updated.";
+    });
+
+    document.getElementById('btnLogEnableAll').addEventListener('click', () => {
+      const selects = document.getElementById('logTableBody').querySelectorAll('select');
+      selects.forEach(s => s.value = "5");
+      document.getElementById('logForm').dispatchEvent(new Event('submit', { cancelable: true }));
+    });
+
+    document.getElementById('btnLogDisableAll').addEventListener('click', () => {
+      const selects = document.getElementById('logTableBody').querySelectorAll('select');
+      selects.forEach(s => s.value = "0");
+      document.getElementById('logForm').dispatchEvent(new Event('submit', { cancelable: true }));
+    });
+
+    // Init
+    async function startTerminalPolling() {
+      while (true) {
+        await pollTerminal();
+        await new Promise(r => setTimeout(r, 300));
+      }
+    }
+
+    async function startGraphicsMirrorPolling() {
+      while (true) {
+        await pollGraphicsMirror();
+        const waitMs = STATE.graphicsPollMs > 0 ? STATE.graphicsPollMs : 1000;
+        await new Promise(r => setTimeout(r, waitMs));
+      }
+    }
+
+    function safeDelay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    async function withTimeout(promise, ms) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), ms);
+      try {
+        const v = await promise(ctrl.signal);
+        return v;
+      } finally {
+        clearTimeout(t);
+      }
+    }
+
+    async function loadConfigSafe() {
+      try {
+        await withTimeout(async (signal) => {
+          const res = await fetch('/api/settings', { cache: 'no-store', signal });
+          const d = await res.json();
+          const f = document.forms.formSettings;
+          if (f) {
+            f.fps.value = d.display_fps;
+            f.partial_refresh.checked = d.partial_refresh;
+            f.pause_cpu_on_refresh.checked = d.pause_cpu_on_refresh;
+            f.clear_on_bottom.checked = !!d.clear_on_bottom;
+            f.wifi_enabled.checked = d.wifi_enabled;
+            f.bt_keyboard_enabled.checked = d.bt_keyboard_enabled;
+            f.gameport_enabled.checked = (d.gameport_enabled !== false);
+          }
+          updateBtKeyboardStatus(!!d.bt_keyboard_connected);
+          const fc = document.forms.formCDrive;
+          if (fc) fc.querySelector('#chkDos33Compat').checked = d.c_drive_dos33_compat;
+
+          // Load drive lists in the background; don't block the UI if these are slow.
+          setTimeout(() => loadDrives(d.c_drive_image_path, d.boot_image_path, d.a_drive_image_path, d.b_drive_image_path).catch(() => { }), 0);
+        }, 4000);
+      } catch (e) { }
+    }
+
+    async function loadLogsSafe() {
+      try {
+        await withTimeout(async (signal) => {
+          const d = await (await fetch('/api/logs', { cache: 'no-store', signal })).json();
+          const ctr = document.getElementById('logTableBody');
+          ctr.innerHTML = Object.entries(d).map(([k, v]) => `
+                <div class="col">
+                    <label class="small text-muted d-block">${k}</label>
+                    <select name="${k}" class="form-select form-select-sm">
+                        ${[[-1, 'Default'], [0, 'None'], [1, 'Error'], [2, 'Warn'], [3, 'Info'], [4, 'Debug'], [5, 'Verbose']].map(o => `<option value="${o[0]}" ${o[0] === v ? 'selected' : ''}>${o[1]}</option>`).join('')}
+                    </select>
+                </div>
+            `).join('');
+        }, 4000);
+      } catch (e) { }
+    }
+
+    (function init() {
+      // Start the terminal loop immediately so the page feels alive even if other endpoints are slow.
+      startTerminalPolling();
+      startGraphicsMirrorPolling();
+      updateGraphicsMirrorVisibility();
+      updateVideoModeLabel();
+
+      // Kick off the rest without blocking the initial render.
+      loadConfigSafe();
+      loadLogsSafe();
+
+      // File manager can be heavy; delay a bit and don't fail the whole UI if it errors.
+      safeDelay(1500).then(() => fmRender('/')).catch(() => { });
+    })();
+  </script>
+</body>
+
+</html>

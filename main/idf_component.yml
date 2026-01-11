@@ -1,0 +1,5 @@
+dependencies:
+  idf:
+    version: ">=5.5"
+  m5stack/m5unified: "*"
+  m5stack/m5gfx: "*"

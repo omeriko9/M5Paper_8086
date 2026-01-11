@@ -1,0 +1,37 @@
+menu "M5Paper DOS Configuration"
+
+    choice EBOOK_DEVICE
+        prompt "Target Device"
+        default EBOOK_DEVICE_M5PAPER
+        help
+            Select the target M5Paper device variant.
+
+        config EBOOK_DEVICE_M5PAPER
+            bool "M5Paper (ESP32)"
+            help
+                Original M5Paper with ESP32 and IT8951 EPD controller.
+                
+        config EBOOK_DEVICE_M5PAPERS3
+            bool "M5PaperS3 (ESP32-S3)"
+            help
+                M5PaperS3 with ESP32-S3 and built-in speaker.
+    endchoice
+
+    config M5PAPER_SPEAKER_ENABLED
+        bool "Enable PC Speaker emulation"
+        default y if EBOOK_DEVICE_M5PAPERS3
+        default n if EBOOK_DEVICE_M5PAPER
+        help
+            Enable PC speaker/buzzer emulation using the device's speaker.
+            M5PaperS3 has a built-in speaker that can be used for this.
+            Original M5Paper does not have a speaker.
+
+    config M5PAPER_SPEAKER_VOLUME
+        int "Speaker volume (0-255)"
+        default 128
+        range 0 255
+        depends on M5PAPER_SPEAKER_ENABLED
+        help
+            Default speaker volume for PC speaker emulation.
+
+endmenu
