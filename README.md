@@ -69,7 +69,7 @@ Contributions are welcome — open an issue or a PR. Please keep changes small, 
 
 ## Ported Projects 📚
 
-- **[8086tiny](https://github.com/adrian-cable/8086tiny)** by Adrian Cable — The core 8086 emulation and BIOS logic are based on this incredibly compact emulator.
+- **[8086tiny](https://github.com/adriancable/8086tiny)** by Adrian Cable — The core 8086 emulation and BIOS logic are based on this incredibly compact emulator.
 
 ## License
 
